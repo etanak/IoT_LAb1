@@ -3,21 +3,14 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <NTPClient.h>
-// change next line to use with another board/shield
-//#include <ESP32WiFi.h>
-#include <WiFi.h> // for WiFi shield
-//#include <WiFi101.h> // for WiFi 101 shield or MKR1000
+#include <WiFi.h>
 #include <WiFiUdp.h>
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+#define SCREEN_WIDTH 128 
+#define SCREEN_HEIGHT 64 
+#define OLED_RESET     4 
+#define SCREEN_ADDRESS 0x3C 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-#define NUMFLAKES     10 // Number of snowflakes in the animation example
-
+#define NUMFLAKES     10 
 #define LOGO_HEIGHT   16
 #define LOGO_WIDTH    16
 #define interruptPin  25
@@ -33,7 +26,6 @@ NTPClient timeClient(ntpUDP);
 String formattedDate;
 String IP;
 String timeStamp;
-//Month names
 String months[12]={"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
 static const unsigned char PROGMEM logo_bmp[] =
@@ -54,12 +46,21 @@ static const unsigned char PROGMEM logo_bmp[] =
   0b01110000, 0b01110000,
   0b00000000, 0b00110000 };
 
+
+const int buttonPin = 25;
+const int ledPin = 5;
+int count = 1;
+
+byte lastButtonState;
+
+unsigned long lastTimeButtonStateChanged = millis();
+unsigned long debounceDuration = 50 ;
+
 void setup() {
   Serial.begin(115200);
-  
-  pinMode(25, INPUT_PULLUP);
-  
-//  attachInterrupt(digitalPinToInterrupt(interruptPin),switching, RISING);  
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(ledPin, OUTPUT);
+  lastButtonState = digitalRead(buttonPin);  
   WiFi.begin(ssid, password);
 
   while ( WiFi.status() != WL_CONNECTED ) {
@@ -67,7 +68,7 @@ void setup() {
     Serial.print ( "." );
   }
   Serial.println("WiFi Connected");
-//  IP = WiFi.localIP()
+  //  IP = WiFi.localIP()
   timeClient.begin();
   timeClient.setTimeOffset(25200);
 
@@ -98,18 +99,10 @@ void setup() {
   delay(1000);
 }
 
-void switching(){
-  if(flag==0){
-    flag = 1;
-  }
-  else{
-    flag  =0;
-  }
-}
 void loop() {
-  timeClient.update();
+    timeClient.update();
   formattedDate = timeClient.getFormattedTime();
-//  Serial.println("Hour:");
+  //  Serial.println("Hour:");
   Serial.println(formattedDate);    
   time_t epochTime = timeClient.getEpochTime();  
   
@@ -127,22 +120,28 @@ void loop() {
   Serial.print("Current date: ");
   Serial.println(currentDate);
 
-//  text(formattedDate,currentDate);
-//  Serial.println("");
-//  text(formattedDate, currentDate);
-//  display.invertDisplay(true);
-  if(flag == 0){ 
-    text2();
+  if (millis() - lastTimeButtonStateChanged >= debounceDuration){
+    byte buttonState = digitalRead(buttonPin);
+    if (buttonState != lastButtonState) {
+      lastTimeButtonStateChanged = millis();
+      lastButtonState = buttonState;
+      if (buttonState == HIGH) {
+        Serial.println("release");
+        if (count%2 == 1){
+          text1(formattedDate,currentDate);
+          count++;
+        }
+        else {
+          text2();
+          count++;
+        }
+        }
+      }
+    }
   }
-  if(flag == 1){
-    text(formattedDate,currentDate);  
-  }
-//  delay(100);
-  
-}
 
 
-void text(String formattedDate,String currentDate) {
+void text1(String formattedDate,String currentDate) {
   display.clearDisplay();
   display.setTextSize(1); // Draw 2X-scale text
   display.setTextColor(SSD1306_WHITE);
@@ -156,7 +155,7 @@ void text(String formattedDate,String currentDate) {
   display.println(F("table 7"));
 
   display.display();      // Show initial text
-//  delay(1000);
+  //  delay(1000);
 
  
 }
@@ -169,11 +168,10 @@ void text2(void) {
   display.setCursor(36, 22);
   display.println(F("My IP is"));
   display.setCursor(25, 32);
-//  display.println(F());
+  //  display.println(F());
   display.println(WiFi.localIP());
   display.setCursor(45, 42);
   display.println(F("table 7"));
   display.display();      // Show initial text
-//  delay(1000);
- 
+  //  delay(1000);
 }
